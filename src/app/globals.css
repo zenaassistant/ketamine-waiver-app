@@ -258,6 +258,71 @@ h1, h2, h3 {
   font-style: italic;
 }
 
+/* Signature mode toggle */
+.sig-mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.sig-mode-btn {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--gray-200);
+  background: var(--gray-100);
+  border-radius: 2px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+}
+
+.sig-mode-btn.active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: white;
+}
+
+/* Font picker */
+.sig-font-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--gray-200);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sig-font-option {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: white;
+  text-align: left;
+  font-size: 1.5rem;
+  color: var(--navy);
+  cursor: pointer;
+  border-bottom: 1px solid var(--gray-100);
+  transition: background 0.1s;
+  line-height: 1.3;
+}
+
+.sig-font-option:last-child {
+  border-bottom: none;
+}
+
+.sig-font-option:hover {
+  background: var(--gray-100);
+}
+
+.sig-font-option.selected {
+  background: #eef6f4;
+  border-left: 3px solid var(--teal);
+}
+
 /* Signature pad */
 .sig-section {
   margin-top: 1rem;
@@ -296,11 +361,13 @@ h1, h2, h3 {
   background: var(--gray-100);
   position: relative;
   overflow: hidden;
+  height: 110px;
 }
 
 .sig-canvas-wrap canvas {
   display: block;
   width: 100%;
+  height: 110px;
   cursor: crosshair;
   touch-action: none;
 }
