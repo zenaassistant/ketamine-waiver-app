@@ -11,44 +11,58 @@ interface SigPadProps {
 
 function SignaturePad({ id, onSign, onClear }: SigPadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
   const isDrawing = useRef(false)
   const [isSigned, setIsSigned] = useState(false)
   const lastPos = useRef<{ x: number; y: number } | null>(null)
+  const initialized = useRef(false)
 
-  const getPos = (e: MouseEvent | TouchEvent, canvas: HTMLCanvasElement) => {
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
-    if ('touches' in e) {
-      return {
-        x: (e.touches[0].clientX - rect.left) * scaleX,
-        y: (e.touches[0].clientY - rect.top) * scaleY,
-      }
-    }
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
-    }
-  }
-
-  useEffect(() => {
+  const initCanvas = useCallback(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
-    canvas.width = canvas.offsetWidth * window.devicePixelRatio
-    canvas.height = 100 * window.devicePixelRatio
+    const wrap = wrapRef.current
+    if (!canvas || !wrap) return
+    const w = wrap.getBoundingClientRect().width
+    if (w === 0 || initialized.current) return
+    initialized.current = true
+    canvas.width = Math.floor(w)
+    canvas.height = 110
+    canvas.style.width = Math.floor(w) + 'px'
+    canvas.style.height = '110px'
     const ctx = canvas.getContext('2d')!
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
     ctx.strokeStyle = '#1a2744'
-    ctx.lineWidth = 1.8
+    ctx.lineWidth = 2
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
   }, [])
 
+  useEffect(() => {
+    initCanvas()
+    const wrap = wrapRef.current
+    if (!wrap) return
+    const ro = new ResizeObserver(() => initCanvas())
+    ro.observe(wrap)
+    return () => ro.disconnect()
+  }, [initCanvas])
+
+  const getPos = (e: MouseEvent | TouchEvent) => {
+    const canvas = canvasRef.current!
+    const rect = canvas.getBoundingClientRect()
+    if ('touches' in e) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      }
+    }
+    return {
+      x: (e as MouseEvent).clientX - rect.left,
+      y: (e as MouseEvent).clientY - rect.top,
+    }
+  }
+
   const startDraw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault()
-    const canvas = canvasRef.current!
     isDrawing.current = true
-    lastPos.current = getPos(e.nativeEvent as MouseEvent | TouchEvent, canvas)
+    lastPos.current = getPos(e.nativeEvent as MouseEvent | TouchEvent)
   }, [])
 
   const draw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -56,7 +70,7 @@ function SignaturePad({ id, onSign, onClear }: SigPadProps) {
     if (!isDrawing.current || !canvasRef.current) return
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')!
-    const pos = getPos(e.nativeEvent as MouseEvent | TouchEvent, canvas)
+    const pos = getPos(e.nativeEvent as MouseEvent | TouchEvent)
     if (lastPos.current) {
       ctx.beginPath()
       ctx.moveTo(lastPos.current.x, lastPos.current.y)
@@ -89,10 +103,9 @@ function SignaturePad({ id, onSign, onClear }: SigPadProps) {
         <span>Signature</span>
         {isSigned && <button type="button" onClick={clear}>Clear</button>}
       </div>
-      <div className="sig-canvas-wrap">
+      <div className="sig-canvas-wrap" ref={wrapRef}>
         <canvas
           ref={canvasRef}
-          style={{ height: '100px' }}
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={endDraw}
@@ -273,11 +286,7 @@ export default function WaiverPage() {
                 </div>
               </div>
 
-              <SignaturePad
-                id="sig1"
-                onSign={setSig1}
-                onClear={() => setSig1('')}
-              />
+              <SignaturePad id="sig1" onSign={setSig1} onClear={() => setSig1('')} />
               {validationErrors.sig1 && <p className="validation-hint">Signature required</p>}
             </div>
           </div>
@@ -295,11 +304,7 @@ export default function WaiverPage() {
                 to not leave the premises of this healthcare setting until the conclusion of the monitoring period,
                 after the treatment session.
               </p>
-              <SignaturePad
-                id="sig2"
-                onSign={setSig2}
-                onClear={() => setSig2('')}
-              />
+              <SignaturePad id="sig2" onSign={setSig2} onClear={() => setSig2('')} />
               {validationErrors.sig2 && <p className="validation-hint">Signature required</p>}
             </div>
           </div>
@@ -322,11 +327,7 @@ export default function WaiverPage() {
                 Additionally, I attest that I have NOT had any adjunctive ketamine treatments, nor have I consumed
                 recreational ketamine since I began treatment at Conscious Health.
               </p>
-              <SignaturePad
-                id="sig3"
-                onSign={setSig3}
-                onClear={() => setSig3('')}
-              />
+              <SignaturePad id="sig3" onSign={setSig3} onClear={() => setSig3('')} />
               {validationErrors.sig3 && <p className="validation-hint">Signature required</p>}
             </div>
           </div>
