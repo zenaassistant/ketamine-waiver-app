@@ -17,27 +17,50 @@ function getClient(): OAuth2Client {
   return cachedClient
 }
 
-function escapeForDriveQuery(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+/** Trims and collapses internal whitespace so "Jane   Doe " and "Jane Doe" are treated as the same name. */
+function normalizeName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ')
+}
+
+async function listPatientFolders(token: string, parentId: string): Promise<{ id: string; name: string }[]> {
+  const q = `'${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`
+  const folders: { id: string; name: string }[] = []
+  let pageToken: string | undefined
+
+  do {
+    const url = new URL('https://www.googleapis.com/drive/v3/files')
+    url.searchParams.set('q', q)
+    url.searchParams.set('fields', 'nextPageToken, files(id,name)')
+    url.searchParams.set('pageSize', '1000')
+    if (pageToken) url.searchParams.set('pageToken', pageToken)
+
+    const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(`Google Drive folder lookup failed: ${res.status} ${text}`)
+    }
+    const json = (await res.json()) as { files: { id: string; name: string }[]; nextPageToken?: string }
+    folders.push(...json.files)
+    pageToken = json.nextPageToken
+  } while (pageToken)
+
+  return folders
 }
 
 /**
- * Finds a subfolder by name directly under parentId, creating it if it
- * doesn't exist yet. Used to keep one Drive folder per patient.
+ * Finds a subfolder by name (case/whitespace-insensitive) directly under
+ * parentId, creating it if no match exists. Used to keep one Drive folder
+ * per patient even if their name is typed with different spacing/casing
+ * across submissions. Names that differ more than that (e.g. a missing
+ * middle initial) intentionally still create separate folders — merging
+ * those requires a human to confirm it's really the same patient.
  */
 async function findOrCreatePatientFolder(token: string, parentId: string, folderName: string): Promise<string> {
-  const q = `'${parentId}' in parents and name='${escapeForDriveQuery(folderName)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
-  const searchRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  )
-  if (!searchRes.ok) {
-    const text = await searchRes.text().catch(() => '')
-    throw new Error(`Google Drive folder lookup failed: ${searchRes.status} ${text}`)
-  }
-  const searchJson = (await searchRes.json()) as { files: { id: string }[] }
-  if (searchJson.files.length > 0) {
-    return searchJson.files[0].id
+  const normalized = normalizeName(folderName)
+  const existing = await listPatientFolders(token, parentId)
+  const match = existing.find(f => normalizeName(f.name).toLowerCase() === normalized.toLowerCase())
+  if (match) {
+    return match.id
   }
 
   const createRes = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
@@ -47,7 +70,7 @@ async function findOrCreatePatientFolder(token: string, parentId: string, folder
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      name: folderName,
+      name: normalized,
       mimeType: 'application/vnd.google-apps.folder',
       parents: [parentId],
     }),
