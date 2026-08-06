@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { list, getDownloadUrl } from '@vercel/blob'
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Conscious2026'
+import { isAdminAuthorized } from '@/lib/admin-auth'
 
 export async function GET(req: NextRequest) {
-  const auth = req.headers.get('x-admin-password')
-  if (auth !== ADMIN_PASSWORD) {
+  if (!isAdminAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

@@ -8,6 +8,7 @@ interface WaiverEntry {
 }
 
 export default function AdminPage() {
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [authed, setAuthed] = useState(false)
   const [patients, setPatients] = useState<Record<string, WaiverEntry[]>>({})
@@ -15,15 +16,17 @@ export default function AdminPage() {
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
+  const authHeaders = { 'x-admin-username': username, 'x-admin-password': password }
+
   const login = async () => {
     setLoading(true)
     setError('')
     try {
       const res = await fetch('/api/admin/list', {
-        headers: { 'x-admin-password': password },
+        headers: authHeaders,
       })
       if (!res.ok) {
-        setError('Incorrect password')
+        setError('Incorrect username or password')
         return
       }
       const data = await res.json()
@@ -38,7 +41,7 @@ export default function AdminPage() {
 
   const refresh = async () => {
     const res = await fetch('/api/admin/list', {
-      headers: { 'x-admin-password': password },
+      headers: authHeaders,
     })
     const data = await res.json()
     setPatients(data.patients)
@@ -46,7 +49,7 @@ export default function AdminPage() {
 
   const download = async (pathname: string) => {
     const res = await fetch(`/api/admin/download?pathname=${encodeURIComponent(pathname)}`, {
-      headers: { 'x-admin-password': password },
+      headers: authHeaders,
     })
     if (!res.ok) return
     const blob = await res.blob()
@@ -77,13 +80,24 @@ export default function AdminPage() {
         <div className="admin-login-card">
           <h2>Admin Access</h2>
           <p style={{ fontSize: '0.8rem', color: '#9e9b94', marginBottom: '1.5rem', lineHeight: 1.5 }}>
-            Enter your admin password to view and download patient waiver submissions.
+            Enter your admin credentials to view and download patient waiver submissions.
           </p>
+          <input
+            type="text"
+            className="admin-input"
+            placeholder="Username"
+            value={username}
+            autoComplete="username"
+            onChange={e => setUsername(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && login()}
+            style={{ marginBottom: '0.75rem' }}
+          />
           <input
             type="password"
             className="admin-input"
             placeholder="Password"
             value={password}
+            autoComplete="current-password"
             onChange={e => setPassword(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && login()}
           />
