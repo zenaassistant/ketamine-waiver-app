@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { put } from '@vercel/blob'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import { uploadPdfToDrive } from '@/lib/google-drive'
 
 function slugify(name: string) {
   return name.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')
@@ -194,7 +195,7 @@ export async function POST(req: Request) {
 
     const pdfBytes = await pdfDoc.save()
 
-    // Upload to Vercel Blob
+    // Upload to Vercel Blob (source of truth for the /admin panel)
     const slug = slugify(patientName)
     const dateSlug = new Date().toISOString().split('T')[0]
     const filename = `waivers/${slug}/${dateSlug}-${Date.now()}.pdf`
@@ -203,6 +204,14 @@ export async function POST(req: Request) {
       access: 'public',
       contentType: 'application/pdf',
     })
+
+    // Also save a copy to Google Drive. Non-fatal: if Drive is misconfigured
+    // or unreachable, the submission still succeeds since Blob already has it.
+    try {
+      await uploadPdfToDrive(pdfBytes, `${slug}-${dateSlug}.pdf`)
+    } catch (err) {
+      console.error('Google Drive upload failed (non-fatal, Blob copy still saved):', err)
+    }
 
     return NextResponse.json({ success: true })
   } catch (err) {
