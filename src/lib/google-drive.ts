@@ -1,31 +1,27 @@
-import { JWT } from 'google-auth-library'
+import { OAuth2Client } from 'google-auth-library'
 
-let cachedClient: JWT | null = null
+let cachedClient: OAuth2Client | null = null
 
-function getClient(): JWT {
+function getClient(): OAuth2Client {
   if (cachedClient) return cachedClient
 
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
-  const rawKey = process.env.GOOGLE_PRIVATE_KEY
-  if (!email || !rawKey) {
-    throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_EMAIL or GOOGLE_PRIVATE_KEY env vars')
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error('Missing GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_OAUTH_REFRESH_TOKEN env vars')
   }
 
-  // Vercel env vars store the key with literal \n sequences; convert back to real newlines.
-  const key = rawKey.replace(/\\n/g, '\n')
-
-  cachedClient = new JWT({
-    email,
-    key,
-    scopes: ['https://www.googleapis.com/auth/drive.file'],
-  })
+  cachedClient = new OAuth2Client({ clientId, clientSecret })
+  cachedClient.setCredentials({ refresh_token: refreshToken })
   return cachedClient
 }
 
 /**
- * Uploads a PDF (as raw bytes) into a specific Google Drive folder using a
- * service account. The folder must be shared with the service account's
- * email address (Editor access) or this will fail with a 403/404.
+ * Uploads a PDF (as raw bytes) into a specific Google Drive folder, using
+ * OAuth credentials for the Google account that owns (or has edit access
+ * to) that folder. Requires a one-time-obtained long-lived refresh token
+ * (see scripts/get-google-refresh-token.mjs).
  */
 export async function uploadPdfToDrive(pdfBytes: Uint8Array, filename: string): Promise<string> {
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID
