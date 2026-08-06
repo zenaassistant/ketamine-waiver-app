@@ -205,10 +205,11 @@ export async function POST(req: Request) {
       contentType: 'application/pdf',
     })
 
-    // Also save a copy to Google Drive. Non-fatal: if Drive is misconfigured
-    // or unreachable, the submission still succeeds since Blob already has it.
+    // Also save a copy to Google Drive, filed into a per-patient subfolder.
+    // Non-fatal: if Drive is misconfigured or unreachable, the submission
+    // still succeeds since Blob already has it.
     try {
-      await uploadPdfToDrive(pdfBytes, `${slug}-${dateSlug}.pdf`)
+      await uploadPdfToDrive(pdfBytes, `${dateSlug}-${Date.now()}.pdf`, patientName.trim())
     } catch (err) {
       console.error('Google Drive upload failed (non-fatal, Blob copy still saved):', err)
     }
