@@ -201,7 +201,7 @@ export async function POST(req: Request) {
     const filename = `waivers/${slug}/${dateSlug}-${Date.now()}.pdf`
 
     await put(filename, Buffer.from(pdfBytes), {
-      access: 'public',
+      access: 'private',
       contentType: 'application/pdf',
     })
 
