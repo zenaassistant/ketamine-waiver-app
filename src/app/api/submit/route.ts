@@ -2,10 +2,7 @@ import { NextResponse } from 'next/server'
 import { put } from '@vercel/blob'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { uploadPdfToDrive } from '@/lib/google-drive'
-
-function slugify(name: string) {
-  return name.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')
-}
+import { getOrCreatePatientSlug } from '@/lib/blob-patient'
 
 function methodLabel(method: string, other: string, friend: string) {
   if (method === 'uber_lyft') return 'Uber / Lyft'
@@ -195,8 +192,9 @@ export async function POST(req: Request) {
 
     const pdfBytes = await pdfDoc.save()
 
-    // Upload to Vercel Blob (source of truth for the /admin panel)
-    const slug = slugify(patientName)
+    // Upload to Vercel Blob (source of truth for the /admin panel), reusing
+    // an existing patient folder on a normalized name match if one exists.
+    const slug = await getOrCreatePatientSlug(patientName)
     const dateSlug = new Date().toISOString().split('T')[0]
     const filename = `waivers/${slug}/${dateSlug}-${Date.now()}.pdf`
 
